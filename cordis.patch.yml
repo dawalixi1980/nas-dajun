@@ -1,0 +1,5 @@
+- insert:
+    - id: construction-wiki
+      name: dsh-construction-wiki
+      config:
+        root: ""

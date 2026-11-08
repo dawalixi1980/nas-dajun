@@ -1,0 +1,23 @@
+{
+  "name": "dsh-construction-wiki",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "description": "施工 Wiki：QQ 群聊归档 → 按天结构层 + 施工日志/单价台账 Excel；支持从 GitHub 仓库更新",
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-settings"],
+      "external": ["react"]
+    }
+  },
+  "engines": { "node": ">=22" }
+}
