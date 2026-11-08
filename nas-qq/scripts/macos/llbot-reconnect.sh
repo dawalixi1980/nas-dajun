@@ -29,11 +29,24 @@ DOWN_SINCE=${DOWN_SINCE:-0}; LAST_ALERT=${LAST_ALERT:-0}
 
 NOW=$(date +%s)
 
+# 健康检查必须用「能真拿到数据」的接口。
+# get_login_info 在协议层断开后仍会返回缓存值（假在线），不能用。
+# get_group_list 在掉线时返回 {"status":"failed",...,"data":null}。
 HEALTHY=0
-if /usr/bin/curl -s -m 5 -X POST "http://127.0.0.1:3000/get_login_info" \
-     -H "Authorization: Bearer $TOKEN" 2>/dev/null | /usr/bin/grep -q '"user_id"'; then
-  HEALTHY=1
+RESP=$(/usr/bin/curl -s -m 8 -X POST "http://127.0.0.1:3000/get_group_list" \
+        -H "Authorization: Bearer $TOKEN" 2>/dev/null)
+case "$RESP" in
+  *'"data":['*) HEALTHY=1 ;;                # 有群数组（含空数组）→ 在线
+  *'"data":null'*) HEALTHY=0 ;;              # 明确失败 → 掉线
+  *'not logged in'*) HEALTHY=0 ;;             # 协议层未登录
+  *) HEALTHY=0 ;;                              # 连不上 → 掉线
+esac
+if [ "$HEALTHY" = "0" ] && [ -n "$RESP" ]; then
+  log "健康检查失败：$(printf '%s' "$RESP" | cut -c1-80)"
 fi
+
+# 心跳：每次检查都记一行，用于事后统计真实在线率与掉线间隔
+echo "$(date "+%F %T") $([ "$HEALTHY" = "1" ] && echo UP || echo DOWN)" >> "$HOME/.qq-organizer/uptime.log"
 
 if [ "$HEALTHY" = "1" ]; then
   if [ "$DOWN_SINCE" != "0" ]; then

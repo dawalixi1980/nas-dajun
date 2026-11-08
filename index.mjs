@@ -175,6 +175,70 @@ async function pullSkillFromRepo(repo, ref) {
   return { written, dst };
 }
 
+
+/* ---------------- 每日自动整理（定时任务） ---------------- */
+
+const SCHEDULE_PATH = join(HOME, '.dsh-construction-wiki', 'schedule.json');
+const DAILY_SH = join(TOOLS_DIR, 'daily.sh');
+const LAUNCHD_LABEL = 'com.qq.construction-wiki';
+const LAUNCHD_PLIST = join(HOME, 'Library', 'LaunchAgents', LAUNCHD_LABEL + '.plist');
+
+async function loadSchedule() {
+  const raw = await readJson(SCHEDULE_PATH, {});
+  return {
+    enabled: raw.enabled !== false,
+    hour: Number.isInteger(raw.hour) ? raw.hour : 22,
+    minute: Number.isInteger(raw.minute) ? raw.minute : 0,
+    scanRoot: raw.scanRoot || join(HOME, '项目文件'),
+  };
+}
+
+async function saveSchedule(patch) {
+  const next = { ...(await loadSchedule()), ...patch };
+  next.hour = Math.min(23, Math.max(0, Math.trunc(Number(next.hour)) || 0));
+  next.minute = Math.min(59, Math.max(0, Math.trunc(Number(next.minute)) || 0));
+  await writeJson(SCHEDULE_PATH, next);
+  return next;
+}
+
+/** 写系统定时任务。macOS 用 launchd；其他平台返回提示。 */
+async function writeLaunchd(sched) {
+  if (process.platform !== 'darwin') {
+    return { ok: false, error: '当前系统不是 macOS，请用计划任务调用 tools/daily.sh' };
+  }
+  await mkdir(dirname(LAUNCHD_PLIST), { recursive: true });
+  const outLog = join(HOME, '.qq-organizer', 'construction-wiki.out');
+  const plist = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0"><dict>',
+    '  <key>Label</key><string>' + LAUNCHD_LABEL + '</string>',
+    '  <key>ProgramArguments</key><array>',
+    '    <string>/bin/sh</string>',
+    '    <string>' + DAILY_SH + '</string>',
+    '    <string>' + sched.scanRoot + '</string>',
+    '  </array>',
+    '  <key>StartCalendarInterval</key><dict>',
+    '    <key>Hour</key><integer>' + sched.hour + '</integer>',
+    '    <key>Minute</key><integer>' + sched.minute + '</integer>',
+    '  </dict>',
+    '  <key>StandardOutPath</key><string>' + outLog + '</string>',
+    '  <key>StandardErrorPath</key><string>' + outLog + '</string>',
+    '</dict></plist>',
+    '',
+  ].join(String.fromCharCode(10));
+  await writeFile(LAUNCHD_PLIST, plist);
+
+  const uid = process.getuid?.() ?? 501;
+  await execFileAsync('launchctl', ['bootout', 'gui/' + uid + '/' + LAUNCHD_LABEL]).catch(() => {});
+  if (sched.enabled) {
+    await execFileAsync('launchctl', ['bootstrap', 'gui/' + uid, LAUNCHD_PLIST]).catch(async () => {
+      await execFileAsync('launchctl', ['load', '-w', LAUNCHD_PLIST]).catch(() => {});
+    });
+  }
+  return { ok: true, plist: LAUNCHD_PLIST, enabled: sched.enabled };
+}
+
 /* ---------------- 归档数据源 ---------------- */
 
 async function listProjects() {
@@ -293,6 +357,22 @@ export async function apply(ctx, config = {}) {
       send(res, 200, { ok: true, ...pulled, sha: info.latest?.sha ?? ref });
     });
 
+    route(`${PREFIX}/schedule`, async (req, res) => {
+      if (req.method === 'GET') {
+        return send(res, 200, { ok: true, ...(await loadSchedule()), platform: process.platform });
+      }
+      if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
+      const body = JSON.parse((await readBody(req)) || '{}');
+      const sched = await saveSchedule({
+        enabled: body.enabled,
+        hour: body.hour,
+        minute: body.minute,
+        scanRoot: body.scanRoot,
+      });
+      const applied = await writeLaunchd(sched);
+      send(res, 200, { ok: true, ...sched, applied });
+    });
+
     route(`${PREFIX}/pick`, async (req, res) => {
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       try {
@@ -385,5 +465,25 @@ export async function apply(ctx, config = {}) {
     },
   });
 
+  ctx.tools.register({
+    name: 'wiki_schedule',
+    description: '设置施工 Wiki 的每日自动整理时间（会写系统定时任务）。',
+    parameters: {
+      type: 'object',
+      properties: {
+        hour: { type: 'number', description: '0-23' },
+        minute: { type: 'number', description: '0-59' },
+        enabled: { type: 'boolean' },
+        scanRoot: { type: 'string', description: '在哪个目录下查找「群聊归档」' },
+      },
+      required: [], additionalProperties: false,
+    },
+    output: reply(),
+    execute: async (args) => {
+      const sched = await saveSchedule(args ?? {});
+      const applied = await writeLaunchd(sched);
+      return { ...sched, applied };
+    },
+  });
   ctx.logger?.info?.(`construction-wiki 已加载；根目录 ${cfg.root}；仓库 ${cfg.repo}`);
 }

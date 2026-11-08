@@ -225,21 +225,53 @@ def build_price_sheet(wb, project, events):
     return rows
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("用法: build-excel.py <目标根>")
-        sys.exit(2)
-    root = Path(sys.argv[1]).expanduser()
-    structure = root  # 项目目录直接位于根下
-    out_root = None  # 各项目自己的 输出/ 目录
-    if not structure.is_dir():
-        print(f"找不到结构层：{structure}")
-        sys.exit(1)
+def find_project_info_dirs(roots):
+    """在给定目录下找名为「项目信息」的子目录（最多两层）。"""
+    found = []
+    for r in roots:
+        p = Path(r).expanduser()
+        if not p.is_dir():
+            continue
+        if p.name == "项目信息":
+            found.append(p)
+            continue
+        for child in p.iterdir():
+            if child.is_dir() and child.name == "项目信息":
+                found.append(child)
+    return found
 
+
+def default_roots():
+    home = Path.home()
+    return [home / "项目文件", home / "Documents", home / "Desktop"]
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--scan" in sys.argv or not args:
+        targets = find_project_info_dirs(default_roots())
+        if not targets:
+            print("没有找到名为「项目信息」的目录。")
+            return
+    else:
+        targets = [Path(args[0]).expanduser()]
+
+    grand_total = 0
+    for root in targets:
+        if not root.is_dir():
+            print(f"跳过（不存在）：{root}")
+            continue
+        print(f"源：{root}")
+        grand_total += build_one(root)
+    print(f"\n完成：{grand_total} 个项目")
+
+
+def build_one(root):
+    structure = root  # 项目目录直接位于根下
     projects = load_events(structure)
     if not projects:
-        print("结构层里没有 events.jsonl，先跑 build-structure")
-        sys.exit(1)
+        print("  （结构层里没有 events.jsonl，先跑 build-structure）")
+        return 0
 
     total = 0
     for project, events in sorted(projects.items()):
@@ -254,8 +286,7 @@ def main():
 
         print(f"  {project}: 日志 {n_log} 行 / 台账 {n_price} 行 → {out_dir}/施工日志与单价台账.xlsx")
         total += 1
-
-    print(f"\n完成：{total} 个项目")
+    return total
 
 
 if __name__ == "__main__":
