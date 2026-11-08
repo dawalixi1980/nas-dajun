@@ -1,0 +1,30 @@
+{
+  "selfId": "<当前登录的QQ号，换号后必须改并重启DSH>",
+  "onebot": {
+    "apiUrl": "http://127.0.0.1:3000",
+    "token": "<随机长字符串，与 LLBot 的 http.token 一致>"
+  },
+  "events": {
+    "host": "127.0.0.1",
+    "port": 5701,
+    "secret": "<随机长字符串，shim 用它算 HMAC>"
+  },
+  "dataDir": "./data",
+  "access": {
+    "privateMode": "disabled",
+    "groupMode": "all",
+    "privateIds": [],
+    "groupIds": [],
+    "blockedUsers": [],
+    "blockedGroups": []
+  },
+  "reply": {
+    "private": false,
+    "group": "off"
+  },
+  "rate": { "minIntervalMs": 1200, "chunkChars": 40 },
+  "retentionDays": 3650,
+  "qzone": { "enabled": false },
+  "poll": { "enabled": true, "intervalMs": 60000 },
+  "napcat": { "mode": "external" }
+}

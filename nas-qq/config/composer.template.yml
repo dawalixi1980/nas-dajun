@@ -1,0 +1,16 @@
+# DSH profile 的 cordis.patch.yml 片段
+# 路径：~/.dsh/profiles/<profile>/cordis.patch.yml
+
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: <provider>
+    model: <model>
+
+- id: im-qqbot
+  name: "@tencent-connect/dsh-qqbot"
+  config:
+    appId: "<AppID>"
+    appSecret: "<AppSecret>"
+    cwd: "/path/to/agent/workspace"
+    requireMention: true

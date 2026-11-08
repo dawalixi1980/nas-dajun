@@ -32,6 +32,10 @@ const STATE_PATH = join(HOME, '.dsh-construction-wiki', 'state.json');
 const DEFAULT_ROOT = join(HOME, '项目文件/项目信息');
 const DEFAULT_REPO = 'dawalixi1980/nas-dajun';
 const PREFIX = '/construction-wiki/api';
+/** 技能在仓库中的目录：插件只监听这里的变更 */
+const SKILL_PATH = 'dajunskill';
+/** 具体技能名 */
+const SKILL_SLUG = 'construction-wiki';
 
 /** 运行插件脚本用的 node：优先用宿主自带的，退回系统 node */
 const NODE_BIN = process.env.DSH_NODE_BIN
@@ -101,8 +105,10 @@ async function runPythonTool(script, args) {
 
 /* ---------------- GitHub 更新 ---------------- */
 
-async function githubLatest(repo) {
-  const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1`, {
+async function githubLatest(repo, path = SKILL_PATH) {
+  // 只关注 dajunskill/ 目录下的提交：其他目录（文档、脚本）改动不触发技能更新
+  const q = path ? `&path=${encodeURIComponent(path)}` : "";
+  const res = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=1${q}`, {
     headers: { 'User-Agent': 'dsh-construction-wiki', Accept: 'application/vnd.github+json' },
     signal: AbortSignal.timeout(10_000),
   });
@@ -136,6 +142,37 @@ async function checkUpdate() {
     upToDate: Boolean(latest && !latest.empty && state.sha && latest.sha === state.sha),
     error,
   };
+}
+
+
+/**
+ * 从仓库 dajunskill/ 目录拉取技能文件到 ~/.dsh/skills/。
+ *
+ * 为什么用 raw.githubusercontent 而不是 git pull：
+ *   - 不需要用户在目标机器上装 git
+ *   - Win / macOS 行为一致
+ *   - 只取技能定义，不碰插件代码，更新风险最小
+ */
+async function pullSkillFromRepo(repo, ref) {
+  const base = `https://raw.githubusercontent.com/${repo}/${ref}/${SKILL_PATH}/${SKILL_SLUG}`;
+  const files = ['SKILL.md', 'references.md'];
+  const dst = join(SKILL_DST, SKILL_SLUG);
+  await mkdir(dst, { recursive: true });
+  const written = [];
+  for (const name of files) {
+    const url = `${base}/${name}`;
+    let res;
+    try {
+      res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    } catch { continue; }
+    if (!res.ok) continue;                       // 可选文件不存在就跳过
+    const text = await res.text();
+    if (!text.trim()) continue;
+    await writeFile(join(dst, name), text);
+    written.push(name);
+  }
+  if (!written.length) throw new Error(`拉取失败：${base}/SKILL.md 取不到`);
+  return { written, dst };
 }
 
 /* ---------------- 归档数据源 ---------------- */
@@ -244,6 +281,18 @@ export async function apply(ctx, config = {}) {
       send(res, 200, { ok: true, ...(await checkUpdate()) });
     });
 
+    // 从仓库 dajunskill/ 拉取最新技能定义
+    route(`${PREFIX}/update-skill`, async (req, res) => {
+      if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
+      const cfgNow = await loadConfig();
+      const info = await checkUpdate();
+      if (info.error) return send(res, 400, { ok: false, error: info.error });
+      const ref = info.latest?.sha || 'main';
+      const pulled = await pullSkillFromRepo(cfgNow.repo, ref);
+      await writeJson(STATE_PATH, { sha: info.latest?.sha ?? ref, version: (info.localVersion || '0.1.0') });
+      send(res, 200, { ok: true, ...pulled, sha: info.latest?.sha ?? ref });
+    });
+
     route(`${PREFIX}/pick`, async (req, res) => {
       if (req.method !== 'POST') return send(res, 405, { ok: false, error: 'method_not_allowed' });
       try {
@@ -319,6 +368,21 @@ export async function apply(ctx, config = {}) {
     parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
     output: reply(),
     execute: checkUpdate,
+  });
+
+  ctx.tools.register({
+    name: 'wiki_update_skill',
+    description: '从 GitHub 仓库的 dajunskill/ 目录拉取最新技能定义到本机（跨平台，不需要 git）。',
+    parameters: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    output: reply(),
+    execute: async () => {
+      const cfgNow = await loadConfig();
+      const info = await checkUpdate();
+      if (info.error) return { ok: false, error: info.error };
+      const pulled = await pullSkillFromRepo(cfgNow.repo, info.latest?.sha || 'main');
+      await writeJson(STATE_PATH, { sha: info.latest?.sha ?? null, version: info.localVersion || '0.1.0' });
+      return { ok: true, ...pulled, sha: info.latest?.sha ?? null };
+    },
   });
 
   ctx.logger?.info?.(`construction-wiki 已加载；根目录 ${cfg.root}；仓库 ${cfg.repo}`);

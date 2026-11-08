@@ -1,0 +1,23 @@
+{
+  "ob11": {
+    "enable": true,
+    "connect": [
+      {
+        "type": "http",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3000,
+        "token": "<与 dsh-qq-access 的 onebot.token 相同>",
+        "messageFormat": "array"
+      },
+      {
+        "type": "http-post",
+        "enable": true,
+        "url": "http://127.0.0.1:5702/onebot",
+        "messageFormat": "array"
+      },
+      { "type": "ws", "enable": false, "port": 3001 },
+      { "type": "ws-reverse", "enable": false, "url": "" }
+    ]
+  }
+}
