@@ -175,3 +175,60 @@
 ```
 
 **处理**：重启 LLBot 进程生成新码；或提前部署 `qr-keeper.sh` 值守。
+
+## 20. 监控本身在制造掉线（最重要的坑）
+
+**症状**：频繁被踢，且每次被踢前日志里都有 `get_group_list` / `get_login_info` 调用。
+
+**证据**：某天 4 次被踢，逐条核对日志位置：
+
+```
+Kick #1  ← 前面：get_login_info + get_status
+Kick #2  ← 前面：get_group_list
+Kick #3  ← 前面：get_login_info + get_status
+Kick #4  ← 前面：连续 4 次 get_group_list（新加的健康检查）
+```
+
+**原因**：真人用 QQ 客户端不会每分钟去拉群列表和历史消息。
+周期性 API 调用是最明显的机器特征，比协议指纹还容易被识别。
+
+**量级对比**：
+
+| 做法 | API 调用 | 结果 |
+| --- | --- | --- |
+| 60 秒轮询 + 5 分钟健康检查 + 15 秒面板刷新 | 3000+ 次/天 | 每 3–4 小时被踢 |
+| 全部改为读日志 | **0 次/天** | 待验证 |
+
+**处理**：所有周期性监测改为「读 LLBot 日志」，不碰服务器。
+
+```sh
+# 掉线信号（日志里出现即判定，零 API）
+[W] core [Kick] code=1001 下线通知
+[I] root 协议层断开，等待重连…
+
+# 恢复信号
+[I] qq-protocol Login successful! ... nick: "xxx"
+```
+
+**原则**：
+- 状态展示：读日志
+- 告警触发：读日志
+- 只有用户主动操作（换号、同步、发消息）才调 API
+
+## 21. LLBot 日志不带时间戳
+
+**症状**：出事后无法判断「几点被踢、掉了多久」。
+
+**原因**：LLBot 自己输出的日志行没有时间前缀。
+
+**处理**：在启动包装器里用管道加时间戳：
+
+```sh
+./LuckyLillia --headless --cdn china --qq="$UIN" 2>&1 \
+  | perl -pe 'use POSIX qw(strftime); $_ = strftime("%Y-%m-%d %H:%M:%S ", localtime) . $_;'
+```
+
+注意：
+- **不能用 `exec`**（管道会改变退出码，KeepAlive 判断失效）
+- `2>&1` 必须在管道前，否则 stderr 不进日志
+- macOS 自带 awk **不支持** `strftime`，用 perl

@@ -207,3 +207,55 @@ tail -5 ~/.qq-organizer/notify.log     # 期望出现 qqbot ok: ...
 ```
 
 **结论**：appSecret 变更后必须同步 notify.json。
+
+---
+
+## 监测架构（最终版：零 API 调用）
+
+### 教训
+
+早期用「周期性调接口」来判断在线，结果**监控本身成了最明显的机器特征**，
+每 3–4 小时就被踢一次。详见 [09-troubleshooting.md](09-troubleshooting.md) 第 20 条。
+
+### 现在的分工
+
+| 组件 | 频率 | API 调用 | 做什么 |
+| --- | --- | --- | --- |
+| `com.qq.llbot` | 常驻 | 0 | 协议端 |
+| `com.qq.llbot-shim` | 常驻 | 0 | 签名转发 |
+| `com.qq.llbot-align` | 60 秒 | **0** | 换号后对齐配置（只读本地文件） |
+| `com.qq.kickwatch` | 60 秒 | **0** | 盯日志发现掉线，推告警 |
+| `com.qq.archive-organizer` | 60 秒 | 0 | 归档整理 |
+| `com.qq.construction-wiki` | 每天 22:00 | 0 | 施工结构层 + Excel |
+| `com.qq.archiver.caffeinate` | 常驻 | 0 | 防休眠 |
+
+**日常运行期间 API 调用为 0**，只有用户主动操作（换号 / 同步 / 发消息）才会调。
+
+### 掉线检测原理
+
+```
+每秒看一次日志是否有新增：[Kick] / 协议层断开 → 立刻告警
+                        Login successful     → 恢复通知
+```
+
+`kickwatch.sh` 用字节游标只读新增部分，成本可忽略。
+
+### 面板状态来源
+
+两个面板（QQ 接入 / QQ 归档）都不再调接口，改为读同一份日志：
+
+```
+登录记录在 [Kick] 之后 → 在线
+[Kick]/断开在登录之后 → 已掉线（并显示原因）
+```
+
+好处：不打扰 QQ 服务器，也不会被 LLBot 的接口缓存误导。
+
+### 已被停用的服务
+
+| 服务 | 原因 |
+| --- | --- |
+| `com.qq.llbot-reconnect` | 每 5 分钟调 3 个接口，改为 kickwatch |
+| `com.qq.archiver.watchdog` | 每 5 分钟调接口做三端比对，同样问题 |
+
+三端一致性检查改为**面板内点按触发**（不自动轮询）。
