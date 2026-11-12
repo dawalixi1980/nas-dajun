@@ -56,7 +56,10 @@ QQ 机器人 + 群聊归档 + 结构化工程资料的完整实现。
 │   ├─ 06-命令清单.md
 │   ├─ 07-数据目录.md
 │   ├─ 08-平台差异.md
-│   └─ 09-更新机制.md
+│   ├─ 09-更新机制.md
+│   └─ 10-部署清单.md
+├─ config/                   profile 配置模板（已脱敏）
+├─ skills/                   automation-task 技能
 └─ plugins/                  两个插件的完整源码
     ├─ dsh-qqbot-multi/
     └─ dsh-qq-butler/
