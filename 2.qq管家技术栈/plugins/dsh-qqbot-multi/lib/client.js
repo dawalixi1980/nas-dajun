@@ -1646,11 +1646,12 @@ window.__ModuleLoader__.load({
 					setBusy(false);
 				}
 			};
-			return react.createElement("div", {
-				style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", margin: "0 0 12px" }
-			},
-				react.createElement("button", { className: "imqb3-btn", type: "button", disabled: busy, onClick: run }, busy ? "更新中…" : "检查更新"),
-				note === "" ? null : react.createElement("span", { className: "imqb3-hint" }, note));
+			return react.createElement("div", { style: { margin: "0 0 12px" } },
+				react.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+					react.createElement("button", { className: "imqb3-btn", type: "button", disabled: busy, onClick: run }, busy ? "更新中…" : "检查更新"),
+					note === "" ? null : react.createElement("span", { className: "imqb3-hint" }, note)),
+				react.createElement("p", { className: "imqb3-hint", style: { margin: "6px 0 0", opacity: 0.75 } },
+					"仓库 github.com/dawalixi1980/nas-dajun · 目录 2.qq管家技术栈 · © 2026 dawalixi1980"));
 		}
 		function QQBotSettingsSection() {
 			const { state, gone, recheck } = useBindState();

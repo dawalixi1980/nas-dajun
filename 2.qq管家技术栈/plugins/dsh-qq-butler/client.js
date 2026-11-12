@@ -267,6 +267,11 @@ window.__ModuleLoader__.load({
             }, "检查更新"),
             flash ? h("span", { style: css.meta }, flash) : null,
           ),
+          h(
+            "p",
+            { style: Object.assign({}, css.meta, { margin: 0, opacity: 0.75 }) },
+            "仓库 github.com/dawalixi1980/nas-dajun · 目录 2.qq管家技术栈 · © 2026 dawalixi1980",
+          ),
           error ? h("p", { style: css.err }, error) : null,
         ),
 
