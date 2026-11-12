@@ -1,0 +1,68 @@
+{
+  "name": "dsh-qqbot-multi",
+  "version": "0.1.0",
+  "icon": "./assets/icons/qq_logo.svg",
+  "description": "多机器人 QQ 官方接入：多个 AppID 同时在线，每个机器人可单独选择大模型。",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "qqbot",
+    "qq",
+    "cordis",
+    "im"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "@tencent-connect/qqbot-connector": "1.2.0",
+    "@tencent-connect/qqbot-nodejs": "^1.0.5",
+    "js-yaml": "^4.1.0",
+    "qrcode": "^1.5.4",
+    "yaml": "2.8.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1",
+    "@deepseek-ai/dsh-agent": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-session": ">=0.1.0-rc.6",
+    "@deepseek-ai/dsh-user-approval": ">=0.1.0-rc.6",
+    "@deepseek-ai/schemastery": ">=3.18.1",
+    "@tencent-connect/qqbot-connector": "1.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": false
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": false
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": false
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": false
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": false
+    },
+    "@deepseek-ai/dsh-user-approval": {
+      "optional": true
+    }
+  }
+}

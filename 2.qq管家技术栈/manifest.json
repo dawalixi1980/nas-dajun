@@ -1,0 +1,27 @@
+{
+  "name": "qq-butler-stack",
+  "version": "1.0.0",
+  "updatedAt": "2026-11-13",
+  "description": "QQ 机器人 + 群聊归档 + 结构化工程资料",
+  "repo": {
+    "url": "git@github-nas-dajun:dawalixi1980/nas-dajun.git",
+    "branch": "main",
+    "basePath": "2.qq管家技术栈"
+  },
+  "targets": [
+    {
+      "id": "dsh-qqbot-multi",
+      "source": "plugins/dsh-qqbot-multi",
+      "dest": "~/.dsh/profiles/desktop/node_modules/dsh-qqbot-multi",
+      "include": ["lib", "package.json", "cordis.patch.yml", "cordis.yml", "README.md", "CHANGELOG.md", "locale"],
+      "restart": true
+    },
+    {
+      "id": "dsh-qq-butler",
+      "source": "plugins/dsh-qq-butler",
+      "dest": "~/项目文件/qq-butler",
+      "include": ["index.js", "client.js", "cordis.patch.yml", "package.json", "icon.svg", "locale"],
+      "restart": false
+    }
+  ]
+}
