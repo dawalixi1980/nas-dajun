@@ -1620,6 +1620,38 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		/** 设置页栏目：共享一份绑定状态轮询，驱动绑定面板与配置刷新 */
+		/** 插件更新条：从仓库拉取最新的 qq 管家技术栈 */
+		function PluginUpdateBar() {
+			const [busy, setBusy] = react.useState(false);
+			const [note, setNote] = react.useState("");
+			const run = async () => {
+				setBusy(true);
+				setNote("");
+				try {
+					const res = await fetch("/archive2", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ action: "update" })
+					});
+					const body = await res.json().catch(() => ({}));
+					if (body.ok === false) throw new Error(body.error || "更新失败");
+					setNote(body.changed
+						? "✅ 已更新到 " + body.version + (body.restart ? "，重启桌面端后生效" : "")
+						: "✅ 已是最新版本 " + body.version);
+				}
+				catch (err) {
+					setNote("⚠️ " + (err && err.message ? err.message : String(err)));
+				}
+				finally {
+					setBusy(false);
+				}
+			};
+			return react.createElement("div", {
+				style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", margin: "0 0 12px" }
+			},
+				react.createElement("button", { className: "imqb3-btn", type: "button", disabled: busy, onClick: run }, busy ? "更新中…" : "检查更新"),
+				note === "" ? null : react.createElement("span", { className: "imqb3-hint" }, note));
+		}
 		function QQBotSettingsSection() {
 			const { state, gone, recheck } = useBindState();
 			const [hasBots, setHasBots] = (0, react.useState)(null);
@@ -1636,7 +1668,7 @@ window.__ModuleLoader__.load({
 			}, []);
 			// 有已连接的机器人时只显示多机器人面板；扫码绑定/单机器人配置仅在没有机器人时出现
 			const showLegacy = hasBots !== true;
-			return (0, react.createElement)("div", null, (0, react.createElement)(BotsPanel, null), showLegacy ? (0, react.createElement)(BindPanelBody, {
+			return (0, react.createElement)("div", null, (0, react.createElement)(PluginUpdateBar, null), (0, react.createElement)(BotsPanel, null), showLegacy ? (0, react.createElement)(BindPanelBody, {
 				state,
 				gone,
 				recheck
