@@ -274,11 +274,50 @@ export function registerWeixinBindRoutes(ctx, options) {
     });
 
     async function handle(req, res) {
+        try {
+            // 只记录有副作用的请求，跳过 2.5 秒一次的静默轮询
+            const hasParams = String(req.url ?? '').includes('?');
+            if (req.method !== 'GET' || hasParams) {
+                const { appendFileSync } = await import('node:fs');
+                const line = JSON.stringify({
+                    t: new Date().toISOString(),
+                    method: req.method,
+                    origin: req.headers.origin ?? null,
+                    host: req.headers.host ?? null,
+                    url: req.url,
+                });
+                appendFileSync(join(PLUGIN_HOME, 'weixin-bind.log'), line + '\n');
+            }
+        }
+        catch { /* 日志失败不影响主流程 */ }
         if (!trusted(req)) {
             sendJson(res, 403, { error: 'forbidden' });
             return;
         }
         if (req.method === 'GET' || req.method === 'HEAD') {
+            // 兼容：浏览器环境下 POST 可能被拦，允许用 GET ?start=1 触发扫码
+            try {
+                const url = new URL(req.url ?? '', 'http://localhost');
+                if (url.searchParams.get('start') === '1') {
+                    await begin(url.searchParams.get('id') ?? undefined);
+                }
+                else if (url.searchParams.get('verify')) {
+                    const code = String(url.searchParams.get('verify')).trim();
+                    if (session !== null && code !== '') {
+                        session.verifyCode = code;
+                        session.message = '配对数字已提交，等待确认…';
+                    }
+                }
+                else if (url.searchParams.get('dismiss') === '1') {
+                    clearMarker();
+                    saved = null;
+                }
+                else if (url.searchParams.get('cancel') === '1') {
+                    stop();
+                    saved = null;
+                }
+            }
+            catch { /* 忽略参数错误 */ }
             sendJson(res, 200, state());
             return;
         }

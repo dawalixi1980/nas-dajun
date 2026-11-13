@@ -562,7 +562,14 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
         const origin = req.headers.origin;
         if (origin === undefined) return true;
         try {
-            return new URL(origin).host === req.headers.host;
+            const host = new URL(origin).host;
+            if (host === req.headers.host) return true;
+            const loopback = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+            const name = value => String(value ?? '').replace(/:\d+$/, '');
+            const port = value => (String(value ?? '').match(/:(\d+)$/) ?? [])[1] ?? '';
+            return loopback.has(name(host))
+                && loopback.has(name(req.headers.host))
+                && port(host) === port(req.headers.host);
         } catch {
             return false;
         }

@@ -1184,16 +1184,24 @@ window.__ModuleLoader__.load({
 				setBindOpen(false);
 				setBind(null);
 			};
-			const wxPost = (action, extra) => fetch(WX_PATH, {
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ action, ...(extra ?? {}) })
-			}).then((res) => res.json()).then(setWx).catch((err) => {
-				setWx({
-					phase: "error",
-					message: err instanceof Error ? err.message : String(err)
+			// 浏览器环境下 POST 可能被拦，改用 GET + 查询参数驱动（服务端同样支持）
+			const wxPost = (action, extra) => {
+				const params = new URLSearchParams();
+				if (action === "start") {
+					params.set("start", "1");
+					if (extra && extra.id !== undefined) params.set("id", String(extra.id));
+				}
+				else if (action === "verify") params.set("verify", String(extra?.code ?? ""));
+				else if (action === "dismiss") params.set("dismiss", "1");
+				else params.set("cancel", "1");
+				const target = WX_PATH + "?" + params.toString();
+				return fetch(target, { cache: "no-store" }).then((res) => res.json()).then(setWx).catch((err) => {
+					setWx({
+						phase: "error",
+						message: err instanceof Error ? err.message : String(err)
+					});
 				});
-			});
+			};
 			const startWx = (targetId) => {
 				setWxOpen(true);
 				setWx({ phase: "starting" });

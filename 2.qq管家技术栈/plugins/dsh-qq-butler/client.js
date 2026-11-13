@@ -109,6 +109,7 @@ window.__ModuleLoader__.load({
       const [flash, setFlash] = useState("");
       const [rootDraft, setRootDraft] = useState("");
       const [commands, setCommands] = useState([]);
+      const [updating, setUpdating] = useState(false);
       const [browser, setBrowser] = useState({ open: false, path: "", parent: "", entries: [], error: "", loading: false });
 
       const load = useCallback(async () => {
@@ -241,10 +242,11 @@ window.__ModuleLoader__.load({
             h("button", { style: css.ghost, disabled: busy, onClick: load }, "刷新"),
             h("button", {
               style: css.ghost,
-              disabled: busy,
+              disabled: updating,
               onClick: async () => {
-                setBusy(true);
+                setUpdating(true);
                 setError("");
+                setFlash("正在连接 GitHub…");
                 try {
                   const res = await fetch(API, {
                     method: "POST",
@@ -261,10 +263,10 @@ window.__ModuleLoader__.load({
                 } catch (err) {
                   setError("更新失败：" + (err && err.message ? err.message : String(err)));
                 } finally {
-                  setBusy(false);
+                  setUpdating(false);
                 }
               },
-            }, "检查更新"),
+            }, updating ? "更新中…" : "检查更新"),
             flash ? h("span", { style: css.meta }, flash) : null,
           ),
           h(
