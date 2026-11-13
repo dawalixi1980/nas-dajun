@@ -401,7 +401,7 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
             name: 'archive2_status',
             description: '查看群聊归档根目录、已登记的群与各自消息数。',
             parameters: { type: 'object', properties: {}, additionalProperties: false },
-            output: { render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value).slice(0, 800) }], schema: { type: 'object', properties: { root: { type: 'string' }, autoOrganize: { type: 'boolean' }, groups: { type: 'array', items: { type: 'object' } } }, required: ['root', 'groups'], additionalProperties: false } },
+            output: { render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value).slice(0, 800) }], schema: { type: 'object', properties: { root: { type: 'string' }, autoOrganize: { type: 'boolean' }, bridgeBots: { type: 'array', items: { type: 'string' } }, bridged: { type: 'array', items: { type: 'object' } }, modes: { type: 'object' }, groups: { type: 'array', items: { type: 'object' } } }, required: ['root', 'groups'], additionalProperties: false } },
             async execute() {
                 return snapshot();
             },
@@ -410,7 +410,7 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
             name: 'archive2_organize',
             description: '立即执行一次群聊归档整理。',
             parameters: { type: 'object', properties: {}, additionalProperties: false },
-            output: { render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value).slice(0, 800) }], schema: { type: 'object', properties: { messages: { type: 'integer' }, media: { type: 'integer' }, root: { type: 'string' } }, required: ['messages', 'media', 'root'], additionalProperties: false } },
+            output: { render: (_args, value) => [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value).slice(0, 800) }], schema: { type: 'object', properties: { messages: { type: 'integer' }, media: { type: 'integer' }, root: { type: 'string' }, skipped: { type: 'boolean' }, bridged: { type: 'array', items: { type: 'object' } } }, required: ['messages', 'media', 'root'], additionalProperties: false } },
             async execute() {
                 return runOrganize();
             },
