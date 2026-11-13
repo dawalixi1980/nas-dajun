@@ -29,7 +29,17 @@ function trusted(req) {
     if (origin === undefined)
         return true;
     try {
-        return new URL(origin).host === req.headers.host;
+        const host = new URL(origin).host;
+        if (host === req.headers.host)
+            return true;
+        // 本机访问时 localhost 与 127.0.0.1 视为同一来源
+        const loopback = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+        const name = value => String(value ?? '').replace(/:\d+$/, '');
+        const port = value => (String(value ?? '').match(/:(\d+)$/) ?? [])[1] ?? '';
+        // 只有「同端口」且「双方都是回环地址」才放行，避免同机其他端口伪造
+        return loopback.has(name(host))
+            && loopback.has(name(req.headers.host))
+            && port(host) === port(req.headers.host);
     }
     catch {
         return false;
