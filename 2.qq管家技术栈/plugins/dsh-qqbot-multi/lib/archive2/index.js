@@ -228,7 +228,7 @@ function currentSessionGroup(exec) {
     return null;
 }
 
-export function mountArchive2(ctx, logger) {
+export function mountArchive2(ctx, logger, pluginConfig = {}) {
     const state = readState();
     const settings = readConfig();
 
@@ -296,6 +296,56 @@ export function mountArchive2(ctx, logger) {
     };
     setArchiveApi({ rename: doRename, snapshot });
 
+    /** 机器人改名迁移：把旧的「机器人名」目录连同工程信息目录一起改名 */
+    const reconcileBotNames = async () => {
+        const map = new Map();
+        for (const bot of pluginConfig.bots ?? []) {
+            if (bot?.id && bot?.name) map.set(String(bot.id), String(bot.name));
+        }
+        if (map.size === 0) return [];
+        const moved = [];
+
+        for (const [botId, bucket] of Object.entries(state.groups)) {
+            const newName = map.get(botId);
+            if (!newName) continue;
+            const oldNames = new Set(
+                Object.values(bucket).map(info => info?.botName).filter(Boolean),
+            );
+            for (const oldName of oldNames) {
+                if (oldName === newName) continue;
+                const oldDir = join(settings.root, sanitize(oldName));
+                const newDir = join(settings.root, sanitize(newName));
+                if (existsSync(oldDir) && !existsSync(newDir)) {
+                    try {
+                        renameSync(oldDir, newDir);
+                        moved.push(`${oldName} → ${newName}`);
+                    }
+                    catch (err) {
+                        logger?.warn?.(`归档: 迁移 ${oldName} 失败: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                }
+                const oldW = join(settings.root, `${sanitize(oldName)}工程信息`);
+                const newW = join(settings.root, `${sanitize(newName)}工程信息`);
+                if (existsSync(oldW) && !existsSync(newW)) {
+                    try {
+                        renameSync(oldW, newW);
+                    }
+                    catch (err) {
+                        logger?.warn?.(`桥接: 迁移 ${oldName}工程信息 失败: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                }
+                for (const info of Object.values(bucket)) {
+                    if (info?.botName === oldName) info.botName = newName;
+                }
+            }
+        }
+        if (moved.length > 0) {
+            await writeJson(STATE_PATH, state);
+            logger?.info?.(`归档: 机器人改名迁移完成 ${moved.join('、')}`);
+        }
+        return moved;
+    };
+
     let organizing = false;
     const runOrganize = async () => {
         if (organizing) {
@@ -305,6 +355,7 @@ export function mountArchive2(ctx, logger) {
         organizing = true;
         let result;
         try {
+            await reconcileBotNames();
             result = await organize(state, settings.root, logger);
         }
         finally {

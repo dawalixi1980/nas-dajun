@@ -91,7 +91,7 @@ export async function apply(ctx, config) {
     ensureVisionInputModal(config.vision, logger);
     registerDescribeImageTool(ctx, config.vision, logger);
     registerSendFileTool(ctx, registry, config, logger);
-    mountArchive2(ctx, logger);
+    mountArchive2(ctx, logger, config);
     if (config.media.enabled)
         startMediaCleanup(ctx, config.media.ttlHours, logger);
     // ── 单机器人模式保留原有的绑定/配置页路由（路径固定，多机器人时改走 /qqbot/bots） ──
