@@ -9,6 +9,8 @@ import { groupsCommand } from "./groups.js";
 import { todoCommand } from "./todo.js";
 import { dayCommand } from "./day.js";
 import { updateCommand } from "./update.js";
+import { githubCommand } from "./github.js";
+import { skillCommand } from "./skill.js";
 /**
  * 构建标准命令列表
  */
@@ -30,6 +32,8 @@ export function buildCommandList(deps) {
         todoCommand(deps),
         dayCommand(deps),
         updateCommand(deps),
+        githubCommand(deps),
+        skillCommand(deps),
     ];
     // help 需要访问完整列表（含自身），通过闭包惰性引用
     commands.push(helpCommand(deps, () => commands));
