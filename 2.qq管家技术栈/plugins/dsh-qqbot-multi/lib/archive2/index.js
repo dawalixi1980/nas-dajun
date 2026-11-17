@@ -285,6 +285,14 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
         const oldDir = join(settings.root, botDir, sanitize(hit.info.folder));
         const newFolder = sanitize(name);
         const newDir = join(settings.root, botDir, newFolder);
+        // 约束：一个群一个文件夹 —— 重名会把两个群写进同一个目录，直接拒绝
+        const clash = Object.entries(state.groups[hit.botId] ?? {})
+            .find(([otherOpenid, info]) => otherOpenid !== hit.openid
+            && info
+            && sanitize(info.folder) === newFolder);
+        if (clash) {
+            throw new Error(`已经有群用了「${newFolder}」这个文件夹名，换一个（一个群一个文件夹）`);
+        }
         if (existsSync(oldDir) && oldDir !== newDir) {
             await mkdir(join(settings.root, botDir), { recursive: true });
             renameSync(oldDir, newDir);

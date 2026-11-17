@@ -1,0 +1,17 @@
+# dsh-qqbot-multi bundle patch
+#
+# 多机器人版：profile 的 cordis.patch.yml 里给 `im-qqbot` 条目配置 `bots` 数组，
+# 每个机器人一项（appId/appSecret/name/provider/model/preset/access ...）。
+# 未配置 bots 时退化为单机器人，沿用顶层 appId/appSecret。
+- insert:
+    - id: qqbot-multi
+      name: dsh-qqbot-multi
+      disabled: true
+      config:
+        requireMention: true
+        textChunkLimit: 4500
+        sessionIdleTimeout: 1800000
+        maxQueue: 20
+        processingTimeoutMs: 1800000
+        historyLimit: 10
+        bots: []
