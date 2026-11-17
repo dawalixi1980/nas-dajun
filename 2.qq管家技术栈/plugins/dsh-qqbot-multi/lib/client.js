@@ -830,10 +830,15 @@ window.__ModuleLoader__.load({
       className: "imqb2-save",
       onClick: async () => {
         try {
-          const picked = await fetch("/qq-archive/v18/pick", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" }).then((r) => r.json());
-          if (!picked || !picked.path) return;
-          const saved = await fetch("/qq-archive/v18/qqbot/cwd", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: picked.path }) }).then((r) => r.json());
-          window.alert(saved && saved.ok ? "已设置：" + picked.path + "\n重启 DSH 后，下一条消息起生效" : "失败：" + ((saved && saved.error) || "未知错误"));
+          const list = await fetch("/qqbot/bots", { method: "GET", credentials: "same-origin" }).then((r) => r.json());
+          const bots = Array.isArray(list && list.bots) ? list.bots : [];
+          if (bots.length === 0) return window.alert("还没有配置机器人，请先到「机器人管理」里添加");
+          const target = bots.find((b) => b && b.id === "default") || bots[0];
+          const picked = await fetch("/qqbot/bots/pick-dir", { method: "POST", credentials: "same-origin" }).then((r) => r.json().catch(() => ({})));
+          if (!picked || !picked.ok) return window.alert("选择目录失败：" + ((picked && picked.error) || "宿主没有提供目录选择器"));
+          if (picked.cancelled) return;
+          const saved = await fetch("/qqbot/bots", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "update", id: target && target.id, bot: { cwd: picked.path } }) }).then((r) => r.json().catch(() => ({})));
+          window.alert(saved && saved.ok ? "已设置：" + picked.path + "\n插件重载后，下一条消息起生效" : "失败：" + ((saved && saved.error) || "未知错误"));
         } catch (e) { window.alert("失败：" + e); }
       },
     }, "选择目录…"),

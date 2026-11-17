@@ -18,6 +18,7 @@
  */
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -74,9 +75,14 @@ export function extractEvents(text) {
 
 
 const PYTHON_CANDIDATES = [
-    '/Users/dada/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/python/bin/python3',
+    process.env.DSH_PYTHON_BIN,
+    // DSH 自带的 python 运行时：macOS 在 .../python/bin/python3，Windows 在 .../python/python.exe
+    join(homedir(), '.dsh', 'dsh-runtimes', 'dsh-primary-runtime', 'dependencies', 'python',
+        process.platform === 'win32' ? 'python.exe' : join('bin', 'python3')),
+    process.platform === 'win32' ? 'python' : 'python3',
     'python3',
-];
+    'python',
+].filter(Boolean);
 
 /** 调用 excel.py 生成两个 Excel（失败只记日志，不影响归档） */
 function runExcel(groupDir, logger) {

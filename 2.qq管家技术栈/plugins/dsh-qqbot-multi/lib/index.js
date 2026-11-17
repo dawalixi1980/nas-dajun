@@ -57,6 +57,9 @@ export async function apply(ctx, config) {
     registerAutomationRoutes(ctx, { engine, registry });
     setInboundListener(event => engine.onMessage(event));
     registerAutomationTool(ctx, engine, registry, config, logger);
+    // ── 归档/桥接/Excel/更新与机器人凭据无关：先挂载，
+    //    保证没配 AppID 时 QQ 管家面板也能读状态（否则 /archive2 全 404） ──
+    mountArchive2(ctx, logger, config);
     // ── 没有任何可用凭据：唤起扫码绑定（单机器人流程，原行为） ──
     if (bots.length === 0) {
         logger.info('凭据未配置，启动扫码绑定...');
@@ -91,7 +94,6 @@ export async function apply(ctx, config) {
     ensureVisionInputModal(config.vision, logger);
     registerDescribeImageTool(ctx, config.vision, logger);
     registerSendFileTool(ctx, registry, config, logger);
-    mountArchive2(ctx, logger, config);
     if (config.media.enabled)
         startMediaCleanup(ctx, config.media.ttlHours, logger);
     // ── 单机器人模式保留原有的绑定/配置页路由（路径固定，多机器人时改走 /qqbot/bots） ──

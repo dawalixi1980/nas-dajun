@@ -136,8 +136,14 @@ function findEntryConfig(doc) {
         if (!isScalar(idNode) || String(idNode.value) !== ENTRY_ID)
             continue;
         const configNode = item.get('config', true);
-        if (configNode === undefined)
-            return undefined;
+        if (configNode === undefined) {
+            // 条目存在但没有 config 映射（宿主启用插件时就是这么写的）：
+            // 就地补一个，返回它并视为「已挂载」，否则调用方会再追加一条
+            // 同 id 条目，读回校验时命中前一条无 config 的条目而判定失败。
+            const created = doc.createNode({});
+            item.set('config', created);
+            return created;
+        }
         if (!isMap(configNode)) {
             throw new PatchFormatError('im-qqbot 条目的 config 不是映射');
         }
