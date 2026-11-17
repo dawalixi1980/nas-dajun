@@ -4,7 +4,7 @@
  * 输入：~/.dsh-qqbot/archive/*.jsonl（由 group-archive 中间件写入，含未 @ 的消息）
  * 输出：<root>/<机器人名>/<群聊文件夹>/<日期>.jsonl + 媒体/<日期>/xxx.jpg
  */
-import { existsSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, renameSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { appendFile, copyFile, mkdir, readdir } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { homedir } from 'node:os';
@@ -294,7 +294,8 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
         await writeJson(STATE_PATH, state);
         return { ok: true, folder: newFolder, name: String(name) };
     };
-    setArchiveApi({ rename: doRename, snapshot });
+    // 惰性引用：reconcileBotNames 在本行之后才初始化（const TDZ）
+    setArchiveApi({ rename: doRename, snapshot, reconcile: () => reconcileBotNames() });
 
     /** 机器人改名迁移：把旧的「机器人名」目录连同工程信息目录一起改名 */
     const reconcileBotNames = async () => {
@@ -322,6 +323,29 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
                     }
                     catch (err) {
                         logger?.warn?.(`归档: 迁移 ${oldName} 失败: ${err instanceof Error ? err.message : String(err)}`);
+                    }
+                }
+                else if (existsSync(oldDir) && existsSync(newDir)) {
+                    // 新旧目录并存（改名中途建过目录）：把旧目录内容并进新目录，不留分裂目录
+                    try {
+                        let merged = 0;
+                        for (const name of readdirSync(oldDir)) {
+                            const from = join(oldDir, name);
+                            const to = join(newDir, name);
+                            if (existsSync(to))
+                                continue;
+                            renameSync(from, to);
+                            merged += 1;
+                        }
+                        try {
+                            rmdirSync(oldDir);
+                        }
+                        catch { /* 还有没并完的子目录，留着 */ }
+                        if (merged > 0)
+                            moved.push(`${oldName} 合并 → ${newName}（${merged} 项）`);
+                    }
+                    catch (err) {
+                        logger?.warn?.(`归档: 合并 ${oldName} → ${newName} 失败: ${err instanceof Error ? err.message : String(err)}`);
                     }
                 }
                 const oldW = join(settings.root, `${sanitize(oldName)}工程信息`);
@@ -391,6 +415,9 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
         timer.unref?.();
         return () => clearInterval(timer);
     };
+    // 插件加载（含改名后的热重载）就先对一次账：机器人改名 → 归档目录跟着改名。
+    // 不依赖定时任务，避免「改完名字要等下一轮整理才对上」。
+    void reconcileBotNames().catch(err => logger?.warn?.(`qq-archive-2: 启动对账失败 ${err instanceof Error ? err.message : String(err)}`));
     stopTimer = startTimer();
     ctx.effect(() => () => stopTimer(), 'qq-archive-2.timer');
     setTimeout(() => { void runOrganize().catch(() => { }); }, 5_000).unref?.();
@@ -680,7 +707,12 @@ export function mountArchive2(ctx, logger, pluginConfig = {}) {
                 }
                 return;
             }
-            if (action === 'setRoot') {
+            if (action === 'syncBotNames') {
+        const moved = await reconcileBotNames();
+        sendJson(res, 200, { ok: true, moved, ...snapshot() });
+        return;
+    }
+    if (action === 'setRoot') {
                 const raw = body?.root;
                 const root = typeof raw === 'string'
                     ? raw.trim()

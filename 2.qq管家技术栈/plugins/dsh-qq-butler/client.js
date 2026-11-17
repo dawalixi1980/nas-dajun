@@ -239,6 +239,7 @@ window.__ModuleLoader__.load({
             "div",
             { style: css.row },
             h("button", { style: css.ghost, disabled: busy, onClick: () => post({ action: "organize" }, "已整理") }, "立即整理"),
+            h("button", { style: css.ghost, disabled: busy, onClick: () => post({ action: "syncBotNames" }, "目录名已按机器人名同步") }, "同步目录名"),
             h("button", { style: css.ghost, disabled: busy, onClick: load }, "刷新"),
             h("button", {
               style: css.ghost,
